@@ -1,0 +1,260 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Sat Mar 17 18:51:38 2018
+
+@author: Linna
+"""
+
+import nltk
+
+ 
+
+nltk.download('punkt')
+nltk.download('averaged_perceptron_tagger')
+
+ 
+
+import pandas as pd
+import numpy as np
+import copy
+import matplotlib.pyplot as plt
+import string 
+
+ 
+##see my code on forbes web scraping to collect news data
+
+fdat = pd.read_csv('/Users/Linna/Documents/forbes_output.csv')
+
+
+exclude = set(string.punctuation)
+fdat['keywords'] = [''.join(ch for ch in x if ch not in exclude) for x in fdat['keywords']]
+ 
+ 
+
+ 
+
+un_dats = fdat['date'].unique()
+un_dats = pd.Series(un_dats)
+un_dats = un_dats.sort_values()
+un_dats = list(un_dats)
+
+ 
+
+ 
+
+ 
+
+for i in range(0, len(un_dats)):
+    print(i)
+    #cdat = fdat.ix[(fdat['date'] == un_dats[i]),:]
+    #need to concat fdat, nytdat, cnndat.
+    c1 = fdat.ix[(fdat['date'] == un_dats[i]),:][['date', 'keywords']]
+    #c2 = fdat2.ix[(fdat2['date'] == un_dats[i]),:][['date', 'keywords']]
+    #c3 = ndat.ix[(ndat['date'] == un_dats[i]),:][['date', 'keywords']]
+    #c4 = cnndat.ix[(cnndat['date'] == un_dats[i]),:][['date', 'keywords']]
+    #cdat = pd.concat([c1, c2, c3, c4])
+    cdat = c1
+    cdat = cdat.reset_index()
+    if(i==0):
+        cwords = cdat['keywords'][i]
+        tw = nltk.word_tokenize(cwords)
+        tww = nltk.pos_tag(tw)
+        tww = pd.DataFrame(tww)
+        #comment bc we are looking at keywords, not full text
+        #pos_ind = [x == 'NN' or x == 'NNS' or x == 'NNP' or x == 'NNPS' for x in tww[1]]#or x == 'JJ' or x == 'JJR' or x == 'JJS' or x == 'RB' or x == 'RBR' or x == 'RBS' or x == '.' for x in tww[1]]
+        #cwords = pd.Series(list(tww[0][pos_ind].unique()))
+        cwords = pd.Series(list(tww[0].unique()))
+        cwords = list(cwords)
+        #cwords = cwords.split(' ')
+        cts = [[x,cwords.count(x)] for x in set(cwords)]
+        q0 = pd.DataFrame(cts)
+        cls = list(q0[0])
+        #q0 = q0.drop(0,1)
+        #q0 = q0.T #recent comment
+        #q0.columns = cls #recent comment
+        p_num = copy.deepcopy(q0)
+        #p_den = copy.deepcopy(q0)
+        for j in range(1, cdat.shape[0]):
+            cwords = cdat['keywords'][cdat.index[j]]
+            tw = nltk.word_tokenize(cwords)
+            tww = nltk.pos_tag(tw)
+            tww = pd.DataFrame(tww)
+            #pos_ind = [x == 'NN' or x == 'NNS' or x == 'NNP' or x == 'NNPS' for x in tww[1]]#or x == 'JJ' or x == 'JJR' or x == 'JJS' or x == 'RB' or x == 'RBR' or x == 'RBS' or x == '.' for x in tww[1]]
+            #cwords = pd.Series(list(tww[0][pos_ind].unique()))
+            cwords = pd.Series(list(tww[0].unique()))
+            cwords = list(cwords)
+            #cwords = cwords.split(' ')
+            cts = [[x,cwords.count(x)] for x in set(cwords)]
+            cts = pd.DataFrame(cts)
+            cls = list(cts[0])
+            #cts = cts.drop(0,1)
+            cts = cts.T
+            cts.columns = cls
+            #transpose, then merge, then row sum
+            #q0 = q0.T
+            cts = cts.T
+            cm = pd.merge(q0, cts, on = 0, how = 'outer')
+            cm = cm.fillna(0)
+            q1 = np.sum(cm, axis = 1)
+            q1 = pd.DataFrame(q1)
+            qcls = list(cm[0])
+            q1[1] = copy.deepcopy(q1[0])
+            q1[0] = copy.deepcopy(qcls)
+            #q1 = q1.T
+            #q1.columns = qcls
+            q0 = copy.deepcopy(q1)
+            p_num = copy.deepcopy(q0)
+    else:
+        for j in range(0, cdat.shape[0]):
+            if(j == 0):
+                #add new column to p_num
+                cwords = cdat['keywords'][cdat.index[j]]
+                if(cwords == ''):
+                    next
+                else:   
+                    tw = nltk.word_tokenize(cwords)
+                    tww = nltk.pos_tag(tw)
+                    tww = pd.DataFrame(tww)
+                    #pos_ind = [x == 'NN' or x == 'NNS' or x == 'NNP' or x == 'NNPS' for x in tww[1]]#or x == 'JJ' or x == 'JJR' or x == 'JJS' or x == 'RB' or x == 'RBR' or x == 'RBS' or x == '.' for x in tww[1]]
+                    #cwords = pd.Series(list(tww[0][pos_ind].unique()))
+                    cwords = pd.Series(list(tww[0].unique()))
+                    cwords = list(cwords)
+                    #cwords = cwords.split(' ')
+                    pcurr = [[x,cwords.count(x)] for x in set(cwords)]
+                    pcurr = pd.DataFrame(pcurr)
+                    pcls = list(pcurr[0])
+                    pcurr = pcurr.T
+                    pcurr.columns = pcls
+                    #q0 = q0.T
+                    pcurr = pcurr.T
+                    cm = pd.merge(q0, pcurr, on = 0, how = 'outer')
+                    cm = cm.fillna(0)
+                    q1 = np.sum(cm[['1_x', '1_y']], axis=1)
+                    q1 = pd.DataFrame(q1)
+                    qcls = list(cm[0])
+                    q1[1] = copy.deepcopy(q1[0])
+                    q1[0] = copy.deepcopy(qcls)
+                    #q1 = q1.T
+                    #q1.columns = qcls
+                    q0 = copy.deepcopy(q1)
+                    #pcurr = pcurr.T
+            else:
+                cwords = cdat['keywords'][cdat.index[j]]
+                if(cwords == ''):
+                    next
+                else:
+                    tw = nltk.word_tokenize(cwords)
+                    tww = nltk.pos_tag(tw)
+                    tww = pd.DataFrame(tww)
+                    #pos_ind = [x == 'NN' or x == 'NNS' or x == 'NNP' or x == 'NNPS' for x in tww[1]]#or x == 'JJ' or x == 'JJR' or x == 'JJS' or x == 'RB' or x == 'RBR' or x == 'RBS' or x == '.' for x in tww[1]]
+                    #cwords = pd.Series(list(tww[0][pos_ind].unique()))
+                    cwords = pd.Series(list(tww[0].unique()))
+                    cwords = list(cwords)
+                    #cwords = cwords.split(' ')
+                    pc1 = [[x,cwords.count(x)] for x in set(cwords)]
+                    pc1 = pd.DataFrame(pc1)
+                    pcls = list(pc1[0])
+                    pc1 = pc1.T
+                    pc1.columns = pcls
+                    #add to q
+                    #q0 = q0.T
+                    pc1 = pc1.T
+                    cm = pd.merge(q0, pc1, on = 0, how = 'outer')
+                    cm = cm.fillna(0)
+                    q1 = np.sum(cm[['1_x', '1_y']], axis=1)
+                    q1 = pd.DataFrame(q1)
+                    qcls = list(cm[0])
+                    q1[1] = copy.deepcopy(q1[0])
+                    q1[0] = copy.deepcopy(qcls)
+                    #q1 = q1.T
+                    #q1.columns = qcls
+                    q0 = copy.deepcopy(q1)
+                    #add to p
+                    #pcurr = pcurr.T
+                    cm = pd.merge(pcurr, pc1, on = 0, how = 'outer')
+                    cm = cm.fillna(0)
+                    q1 = np.sum(cm[['1_x', '1_y']], axis=1)
+                    q1 = pd.DataFrame(q1)
+                    qcls = list(cm[0])
+                    q1[1] = copy.deepcopy(q1[0])
+                    q1[0] = copy.deepcopy(qcls)
+                    #q1 = q1.T
+                    #q1.columns = qcls
+                    pcurr = copy.deepcopy(q1)      
+        #end for loop
+        #add pcurr to p_num
+        p_num = pd.merge(p_num, pcurr, on = 0, how = 'outer')
+        p_num = p_num.fillna(0)
+        pn_cls = pd.Series(list(p_num.columns))
+        pn_cls[[x != 0 for x in p_num.columns]] = list(un_dats[0:(i+1)])
+        p_num.columns = pn_cls
+
+       
+
+        
+
+q0.to_csv('q0.csv')
+p_num.to_csv('p_num.csv')       
+
+ 
+
+ 
+
+ 
+
+ 
+
+#From Event_Detection_Bursts_v2(2).ipynb
+
+ 
+
+import pandas as pd
+import numpy as np
+import copy
+import matplotlib.pyplot as plt
+
+ 
+
+pnum = copy.deepcopy(p_num)
+
+ 
+
+wds_high = []
+tp = []
+threshold = 3 #number of days an "event" has to occur with high probability
+#a threshold of 12-14 days for news events has worked well for me
+for j in range(0, pnum.shape[0]):
+    print(j)
+    curq = q0[1][j]/q0[1].sum()
+    #dt_sums = np.sum(pnum.ix[:,2:199])
+    dt_sums = np.sum(pnum)
+    dt_sums = dt_sums[1:dt_sums.shape[0]]
+    for i in range(threshold+1, pnum.shape[1]):
+        #print(i)
+        if(q0[0][j] in wds_high): #could be possible that one word has more than one burst...
+            next
+        else:
+            #xsum = sum(pd.Series(pnum.ix[j,2:199]/dt_sums)[i-12:i] > curq)
+            #if(xsum == 12): 
+            xsum = sum(pd.Series(pnum.ix[j,:]/dt_sums)[i-threshold:i] > curq)
+            if(xsum == 3):
+                wds_high = wds_high + [q0[0][j]]
+                tp = tp + [pnum.columns[i]]
+
+               
+
+                
+
+                
+
+                
+
+events_output = pd.DataFrame([[x,y] for x,y in zip(wds_high, tp)])
+events_output.columns = ['event', 'start_date']
+events_output.head()               
+
+ 
+
+ 
+
